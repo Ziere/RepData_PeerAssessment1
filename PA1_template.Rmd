@@ -5,21 +5,216 @@ output:
     keep_md: true
 ---
 
-
 ## Loading and preprocessing the data
 
+Setting working directory and loading the required libraries.
 
+```{r}
+setwd("C:/Data Scientific/Reproducible Research/RepData_PeerAssessment1")
+library("data.table")
+library("lattice")
+```
+
+Reading the .csv using in this research.
+
+```{r}
+dt <- read.csv("activity.csv")
+```
 
 ## What is mean total number of steps taken per day?
 
+Code to calculate the total number of steps for each day.
 
+```{r}
+#this function give the sum of each interval in one day
+totalPerDay <- function(date)
+{
+  sum(dt$steps[dt$date == date], na.rm = TRUE)
+}
+#using a sapply to generate the total of steps for each day
+means <-  data.table(date=as.POSIXct(unique(dt$date)),"stepsMean"=sapply(unique(dt$date),totalPerDay))
+```
+
+Histogram with the mean steps taken each day.
+
+```{r, scatterplot, echo=FALSE} 
+histogram(means$stepsMean,xlab = "Total steps for each day", type="count")
+```
+
+```{r, echo=FALSE}
+showMean <- mean(means$stepsMean)
+showMedian <- median(means$stepsMean)
+```
+
+The median of steps for eachs day is `r showMedian`.
+The average of steps is `r showMean`.
 
 ## What is the average daily activity pattern?
 
+```{r, echo=FALSE}
+#this chunk code provides differents measures for each day
+#note the days are in spanish because my R is in spanish
+#
+#this code chunk is unused because I choose other strategy more easy to
+#solve the problem
+means$weekday <- weekdays(means$date)
 
+averagePerDay <- data.table (day = unique(weekdays(as.POSIXct(dt$date))))
+
+meanDay <- NULL
+
+s1 <- as.list(subset(means,weekday == "lunes",select = stepsMean))
+meanDay <- c(meanDay,mean(s1$stepsMean, na.rm = TRUE))
+
+s1 <- as.list(subset(means,weekday == "martes",select = stepsMean))
+meanDay <- c(meanDay,mean(s1$stepsMean, na.rm = TRUE))
+
+s1 <- as.list(subset(means,weekday == "miércoles",select = stepsMean))
+meanDay <- c(meanDay,mean(s1$stepsMean, na.rm = TRUE))
+
+s1 <- as.list(subset(means,weekday == "jueves",select = stepsMean))
+meanDay <- c(meanDay,mean(s1$stepsMean, na.rm = TRUE))
+
+s1 <- as.list(subset(means,weekday == "viernes",select = stepsMean))
+meanDay <- c(meanDay,mean(s1$stepsMean, na.rm = TRUE))
+
+s1 <- as.list(subset(means,weekday == "sábado",select = stepsMean))
+meanDay <- c(meanDay,mean(s1$stepsMean, na.rm = TRUE))
+
+s1 <- as.list(subset(means,weekday == "domingo",select = stepsMean))
+meanDay <- c(meanDay,mean(s1$stepsMean, na.rm = TRUE))
+
+averagePerDay$mean <- meanDay
+```
+
+This code chunk calculate the average of the same interval over all the days.
+
+```{r}
+totalPerInterval <- function(interval)
+{
+  mean(dt$steps[dt$interval == interval], na.rm = TRUE)
+}
+activity <-  data.table(interval=unique(dt$interval),"stepsMean"=sapply(unique(dt$interval),totalPerInterval))
+```
+
+Time-series plot with the average activity pattern 
+
+```{r, echo=FALSE}
+plot(activity$interval,activity$steps,type='l', xlab="interval", ylab="steps",main = "Average activity pattern")
+```
+
+```{r, echo=FALSE}
+interval_with_max_steps <- activity[activity$stepsMean == max(activity$stepsMean),]
+```
+
+The interval with the average maximun number of steps  is the interval number `r interval_with_max_steps$interval` with  `r interval_with_max_steps$stepsMean` steps
 
 ## Imputing missing values
 
+Number total of values with NA using is.na.data.frame
 
+```{r}
+numberOfNAS <- is.na.data.frame(dt)
+sum(numberOfNAS)
+```
+
+Strategy for filling the missing values of the dataset:
+
+- Replace the missing values with the average of steps per day between the number of intervals
+
+Create a new dataset called newDt with the NAS filled.
+```{r}
+value_to_fill <- showMean / length(unique(dt$interval))
+newDt <- dt
+newDt$steps[is.na(newDt$steps)] <- value_to_fill 
+```
+
+Check again the amount of NAS.
+```{r}
+numberOfNAS <- is.na.data.frame(newDt)
+sum(numberOfNAS)
+```
+
+Code to calculate the total number of steps for each day.
+
+```{r}
+#this function give the sum of each interval in one day
+totalPerDay2 <- function(date)
+{
+  sum(newDt$steps[newDt$date == date], na.rm = TRUE)
+}
+#using a sapply to generate the total of steps for each day
+meansNew <-  data.table(date=as.POSIXct(unique(newDt$date)),"stepsMean"=sapply(unique(newDt$date),totalPerDay2))
+```
+
+Histogram with the mean steps taken each day without NAs.
+
+```{r, scatterplot2, echo=FALSE} 
+histogram(meansNew$stepsMean,xlab = "Total steps for each day", type="count")
+```
+
+```{r, echo=FALSE}
+showMean2 <- mean(meansNew$stepsMean)
+showMedian2 <- median(meansNew$stepsMean)
+```
+
+The median of steps for eachs day is now `r showMedian2` with NAs is `r showMedian`.
+The average of steps is now `r showMean2` with Nas is `r showMean`.
+
+We can observe the median still being the same and the average is raised.
 
 ## Are there differences in activity patterns between weekdays and weekends?
+
+With the new dataset we added the kindOfDay factor value.
+
+This code chunk added a factor of 'weekend' or 'weekday' in a field called kindOfDay.
+
+```{r}
+fillKindOfDay <- function(dateIn)
+{
+    day = weekdays(as.POSIXct(dateIn))
+    if (day == "lunes" || day == "martes" || day == "miércoles" || day == "jueves" || day == "viernes")
+    {
+      return("weekday")
+    }
+    else if (day == "Monday" || day == "Tuesday" || day == "Wednesday" || day == "Thursday" || day == "Friday")
+    {
+      return("weekday")
+    }
+    else if (day == "sábado" || day == "domingo")
+    {
+      return("weekend")
+    }
+    else if (day == "Saturday" || day == "Sunday")
+    {
+      return("weekend")
+    }
+    else
+    {
+      return(NA)   
+    }    
+}
+newDt$kindOfDay <-  sapply(newDt$date,fillKindOfDay)
+head(newDt)
+```
+
+```{r, echo=FALSE}
+totalPerIntervalWeekday <- function(interval)
+{
+  mean(newDt$steps[newDt$interval == interval & newDt$kindOfDay == "weekday"], na.rm = TRUE)
+}
+totalPerIntervalWeekend <- function(interval)
+{
+  mean(newDt$steps[newDt$interval == interval & newDt$kindOfDay == "weekend"], na.rm = TRUE)
+}
+```
+
+Plot with the average activity patterns.
+
+```{r, echo=FALSE}
+par(mfcol = c(1,1))
+activity <-  data.table(interval=unique(dt$interval),"stepsMean"=sapply(unique(dt$interval),totalPerIntervalWeekday))
+plot(activity$interval,activity$steps,type='l', xlab="interval", ylab="steps",main = "Average activity pattern (Weekday)")
+activity <-  data.table(interval=unique(dt$interval),"stepsMean"=sapply(unique(dt$interval),totalPerIntervalWeekend))
+plot(activity$interval,activity$steps,type='l', xlab="interval", ylab="steps",main = "Average activity pattern (Weekend)")
+```
